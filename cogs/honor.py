@@ -25,6 +25,11 @@ RANKS: tuple[tuple[str, int], ...] = (
     ("General", 2200),
 )
 
+RANK_CHOICES = [
+    app_commands.Choice(name=f"{rank_name} ({threshold} honor)", value=rank_name)
+    for rank_name, threshold in RANKS
+]
+
 
 def rank_details(honor: int) -> tuple[int, str, str | None, int, int | None]:
     index = 0
@@ -75,6 +80,86 @@ class Honor(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    def verification_is_required(self, guild_id: int) -> bool:
+        return bool(self.bot.store.get_config(guild_id).get("require_verified_for_honor", True))
+
+    def is_verified(self, guild_id: int, member_id: int) -> bool:
+        return self.bot.store.get_verification(guild_id, member_id) is not None
+
+    def can_earn_honor(self, guild_id: int, member_id: int) -> bool:
+        return not self.verification_is_required(guild_id) or self.is_verified(guild_id, member_id)
+
+    def verification_message(self, member: discord.Member) -> str:
+        return (
+            f"{member.mention} must complete **/verify start** and **/verify check** before they can earn honor "
+            "or receive a military rank role."
+        )
+
+    async def sync_rank_role(self, member: discord.Member) -> bool:
+        """Sync configured military rank roles for one member. Returns True when a role changed."""
+        guild = member.guild
+        config = self.bot.store.get_config(guild.id)
+        role_mapping = config.get("rank_role_ids", {})
+        if not isinstance(role_mapping, dict):
+            return False
+
+        bot_member = guild.me
+        if bot_member is None:
+            return False
+
+        configured_roles: dict[str, discord.Role] = {}
+        for rank_name, raw_role_id in role_mapping.items():
+            try:
+                role = guild.get_role(int(raw_role_id))
+            except (TypeError, ValueError):
+                role = None
+            if role is not None:
+                configured_roles[rank_name] = role
+
+        managed_roles = {role.id: role for role in configured_roles.values()}
+        honor = self.bot.store.get_honor(guild.id, member.id)
+        _, current_rank, _, _, _ = rank_details(honor)
+        should_have_rank_role = self.can_earn_honor(guild.id, member.id)
+        desired_role = configured_roles.get(current_rank) if should_have_rank_role else None
+
+        removable = [
+            role for role in managed_roles.values()
+            if role in member.roles
+            and role != desired_role
+            and not role.managed
+            and role < bot_member.top_role
+        ]
+        addable = (
+            desired_role
+            if desired_role is not None
+            and desired_role not in member.roles
+            and not desired_role.managed
+            and desired_role < bot_member.top_role
+            else None
+        )
+
+        changed = False
+        try:
+            if removable:
+                await member.remove_roles(*removable, reason="Automatic military rank role sync")
+                changed = True
+            if addable:
+                await member.add_roles(addable, reason="Automatic military rank role sync")
+                changed = True
+        except discord.Forbidden:
+            return changed
+        return changed
+
+    async def sync_guild_rank_roles(self, guild: discord.Guild) -> int:
+        """Sync cached non-bot members after rank-role configuration changes."""
+        changed = 0
+        for member in guild.members:
+            if member.bot:
+                continue
+            if await self.sync_rank_role(member):
+                changed += 1
+        return changed
+
     @app_commands.command(name="honor", description="View a player's military honor and rank")
     @app_commands.describe(member="Leave empty to view your own honor")
     async def honor(self, interaction: discord.Interaction, member: discord.Member | None = None):
@@ -87,6 +172,34 @@ class Honor(commands.Cog):
 
         total = self.bot.store.get_honor(interaction.guild.id, target.id)
         await interaction.response.send_message(embed=honor_embed(target, total))
+
+    @app_commands.command(name="leaderboard", description="See the top military honor players")
+    @app_commands.describe(limit="How many players to show")
+    async def leaderboard(self, interaction: discord.Interaction, limit: app_commands.Range[int, 3, 20] = 10):
+        if not interaction.guild:
+            return await interaction.response.send_message("Use this command inside a server.", ephemeral=True)
+
+        entries = self.bot.store.get_honor_leaderboard(interaction.guild.id, limit)
+        entries = [(user_id, honor) for user_id, honor in entries if honor > 0]
+        if not entries:
+            return await interaction.response.send_message("No honor has been earned yet. The leaderboard is waiting for its first recruit. 🫡")
+
+        medals = ("🥇", "🥈", "🥉")
+        lines: list[str] = []
+        for position, (user_id, honor) in enumerate(entries, start=1):
+            member = interaction.guild.get_member(user_id)
+            player = member.display_name if member else f"<@{user_id}>"
+            _, rank, _, _, _ = rank_details(honor)
+            marker = medals[position - 1] if position <= 3 else f"`#{position}`"
+            lines.append(f"{marker} **{player}** — **{honor}** honor · {rank}")
+
+        embed = discord.Embed(
+            title="Military Honor Leaderboard",
+            description="\n".join(lines),
+            color=discord.Color.dark_green(),
+        )
+        embed.set_footer(text="Keep training, keep climbing.")
+        await interaction.response.send_message(embed=embed)
 
     @app_commands.command(name="add_honor", description="Give a player military honor")
     @app_commands.checks.has_permissions(moderate_members=True)
@@ -102,10 +215,13 @@ class Honor(commands.Cog):
             return await interaction.response.send_message("Use this command inside a server.", ephemeral=True)
         if member.bot:
             return await interaction.response.send_message("Bots cannot receive honor.", ephemeral=True)
+        if not self.can_earn_honor(interaction.guild.id, member.id):
+            return await interaction.response.send_message(self.verification_message(member), ephemeral=True)
 
         previous, current = self.bot.store.change_honor(interaction.guild.id, member.id, amount)
         previous_rank_index, previous_rank, _, _, _ = rank_details(previous)
         current_rank_index, current_rank, _, _, _ = rank_details(current)
+        await self.sync_rank_role(member)
 
         message = f"Added **{amount} honor** to {member.mention}. Total: **{current}**."
         if current_rank_index > previous_rank_index:
@@ -138,6 +254,7 @@ class Honor(commands.Cog):
         previous, current = self.bot.store.change_honor(interaction.guild.id, member.id, -amount)
         previous_rank_index, previous_rank, _, _, _ = rank_details(previous)
         current_rank_index, current_rank, _, _, _ = rank_details(current)
+        await self.sync_rank_role(member)
 
         message = f"Removed **{previous - current} honor** from {member.mention}. Total: **{current}**."
         if current_rank_index < previous_rank_index:
@@ -168,9 +285,13 @@ class Honor(commands.Cog):
             return await interaction.response.send_message("Bots cannot have honor changed.", ephemeral=True)
 
         previous = self.bot.store.get_honor(interaction.guild.id, member.id)
+        if amount > previous and not self.can_earn_honor(interaction.guild.id, member.id):
+            return await interaction.response.send_message(self.verification_message(member), ephemeral=True)
+
         current = self.bot.store.set_honor(interaction.guild.id, member.id, amount)
         _, previous_rank, _, _, _ = rank_details(previous)
         _, current_rank, _, _, _ = rank_details(current)
+        await self.sync_rank_role(member)
 
         await send_log(
             self.bot,
