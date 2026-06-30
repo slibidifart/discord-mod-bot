@@ -38,6 +38,7 @@ class Store:
         record.setdefault("pending", {})
         record.setdefault("verifications", {})
         record.setdefault("warnings", {})
+        record.setdefault("honor", {})
         return record
 
     def get_config(self, guild_id: int) -> dict[str, Any]:
@@ -88,3 +89,21 @@ class Store:
         count = len(record["warnings"].pop(str(user_id), []))
         self._save()
         return count
+
+    def get_honor(self, guild_id: int, user_id: int) -> int:
+        value = self.guild(guild_id)["honor"].get(str(user_id), 0)
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
+
+    def set_honor(self, guild_id: int, user_id: int, amount: int) -> int:
+        clean_amount = max(0, int(amount))
+        self.guild(guild_id)["honor"][str(user_id)] = clean_amount
+        self._save()
+        return clean_amount
+
+    def change_honor(self, guild_id: int, user_id: int, amount: int) -> tuple[int, int]:
+        previous = self.get_honor(guild_id, user_id)
+        current = self.set_honor(guild_id, user_id, previous + int(amount))
+        return previous, current
