@@ -18,6 +18,8 @@ async def on_ready():
 
 async def load_extensions():
     await bot.load_extension('cogs.moderation')
+    await bot.load_extension('cogs.tickets')
+    await bot.load_extension('cogs.automod')
 
 @bot.event
 async def setup_hook():
