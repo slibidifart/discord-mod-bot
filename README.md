@@ -1,13 +1,42 @@
 # Discord Roblox Management Bot
 
-A Discord bot with Roblox profile-code verification and normal server-management tools.
+A Discord bot with Roblox profile-code verification, military honor ranks, and server-management tools.
 
 ## What it does
 
 - `/verify start`, `/verify check`, `/verify unlink` — links a Discord user to a Roblox profile without asking for their password, cookie, or Roblox login.
 - `/roblox` and `/whois` — looks up Roblox profiles and saved server links.
+- `/honor` — posts a military-style honor card with the player's total, current rank, next rank, and progress bar.
+- `/add_honor`, `/remove_honor`, and `/set_honor` — staff commands for changing a player's honor. Promotion changes are included automatically.
+- `/honor_ranks` — shows the default military rank ladder and the honor needed for each rank.
 - `/config verified-role`, `/config log-channel`, `/config view` — sets the role for verified members and a moderation log channel.
 - `/warn`, `/warnings`, `/clearwarnings`, `/timeout`, `/untimeout`, `/kick`, `/ban`, `/purge`, `/lock`, `/unlock`, `/slowmode`, and `/ping`.
+
+## Honor system
+
+The honor system starts with this military-style ladder:
+
+| Rank | Honor needed |
+| --- | ---: |
+| Recruit | 0 |
+| Senior Recruit | 10 |
+| Private | 25 |
+| Private First Class | 50 |
+| Lance Corporal | 85 |
+| Corporal | 125 |
+| Sergeant | 175 |
+| Staff Sergeant | 240 |
+| Sergeant First Class | 320 |
+| Master Sergeant | 420 |
+| Second Lieutenant | 550 |
+| First Lieutenant | 700 |
+| Captain | 900 |
+| Major | 1,150 |
+| Lieutenant Colonel | 1,450 |
+| Colonel | 1,800 |
+| General | 2,200 |
+
+The commands that change honor require Discord permissions: `/add_honor` and `/remove_honor` require **Moderate Members**, and `/set_honor` requires **Manage Server**. The exact rank list is in `cogs/honor.py`, so you can change the names or honor requirements later.
 
 ## Roblox verification flow
 
@@ -31,4 +60,4 @@ The bot only saves the public Roblox user ID, username, display name, and verifi
 
 ## Keeping data after redeploys
 
-Warnings and verification links are stored in `data/bot_data.json`. Railway's normal filesystem can reset on a redeploy, so attach a Railway Volume and set `DATA_FILE` to a path inside that volume if you want to preserve them long-term.
+Warnings, honor totals, and verification links are stored in `data/bot_data.json`. Railway's normal filesystem can reset on a redeploy, so attach a Railway Volume and set `DATA_FILE` to a path inside that volume if you want to preserve them long-term.
