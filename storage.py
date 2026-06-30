@@ -34,7 +34,13 @@ class Store:
     def guild(self, guild_id: int) -> dict[str, Any]:
         guilds = self.data.setdefault("guilds", {})
         record = guilds.setdefault(str(guild_id), {})
-        record.setdefault("config", {"verified_role_id": None, "log_channel_id": None})
+
+        config = record.setdefault("config", {})
+        config.setdefault("verified_role_id", None)
+        config.setdefault("log_channel_id", None)
+        config.setdefault("require_verified_for_honor", True)
+        config.setdefault("rank_role_ids", {})
+
         record.setdefault("pending", {})
         record.setdefault("verifications", {})
         record.setdefault("warnings", {})
@@ -107,3 +113,15 @@ class Store:
         previous = self.get_honor(guild_id, user_id)
         current = self.set_honor(guild_id, user_id, previous + int(amount))
         return previous, current
+
+    def get_honor_leaderboard(self, guild_id: int, limit: int = 10) -> list[tuple[int, int]]:
+        entries: list[tuple[int, int]] = []
+        for user_id, raw_honor in self.guild(guild_id)["honor"].items():
+            try:
+                honor = max(0, int(raw_honor))
+                entries.append((int(user_id), honor))
+            except (TypeError, ValueError):
+                continue
+
+        entries.sort(key=lambda item: (-item[1], item[0]))
+        return entries[:max(1, min(int(limit), 20))]
