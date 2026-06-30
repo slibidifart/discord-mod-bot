@@ -130,6 +130,13 @@ class RobloxVerification(commands.Cog):
             "display_name": profile["display_name"],
             "verified_at": datetime.now(timezone.utc).isoformat(),
         })
+
+        # A player who already earned honor can receive their configured rank role now.
+        if isinstance(interaction.user, discord.Member):
+            honor_cog = self.bot.get_cog("Honor")
+            if honor_cog is not None:
+                await honor_cog.sync_rank_role(interaction.user)
+
         await send_log(self.bot, interaction.guild, "Roblox verified", f"{interaction.user.mention} linked [{profile['display_name']} (@{profile['username']})]({profile_url(profile['id'])}).")
         await interaction.followup.send(f"✅ Verified as **{profile['display_name']}** (@{profile['username']}){role_notice}.", ephemeral=True)
 
@@ -149,6 +156,12 @@ class RobloxVerification(commands.Cog):
                 await interaction.user.remove_roles(role, reason="Roblox account unlinked by member")
             except discord.Forbidden:
                 pass
+
+        # Verification is required for rank roles by default, so remove any configured rank role too.
+        if isinstance(interaction.user, discord.Member):
+            honor_cog = self.bot.get_cog("Honor")
+            if honor_cog is not None:
+                await honor_cog.sync_rank_role(interaction.user)
 
         await send_log(self.bot, interaction.guild, "Roblox unlinked", f"{interaction.user.mention} removed their Roblox link for **{verification['username']}**.")
         await interaction.response.send_message(f"Your Roblox link for **{verification['username']}** was removed.", ephemeral=True)
