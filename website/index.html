@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TrackHub</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="bg-glow one"></div>
+    <div class="bg-glow two"></div>
+
+    <main class="app-shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Personal tracker dashboard</p>
+          <h1>TrackHub</h1>
+          <p class="hero-text">Track anything: Discord growth, coding tasks, Roblox ideas, habits, goals, money, or random stuff you want to stay on top of.</p>
+        </div>
+        <div class="hero-actions">
+          <button id="exportBtn" class="ghost">Export data</button>
+          <label class="ghost upload-label" for="importInput">Import data</label>
+          <input id="importInput" type="file" accept="application/json" hidden />
+        </div>
+      </section>
+
+      <section class="stats-grid" id="statsGrid"></section>
+
+      <section class="panel add-panel">
+        <div>
+          <h2>Add tracker</h2>
+          <p>Create a tracker for anything. Example: server members, bot bugs fixed, homework, workouts, Robux saved, videos posted.</p>
+        </div>
+        <form id="trackerForm" class="tracker-form">
+          <input id="trackerName" type="text" placeholder="Tracker name" maxlength="32" required />
+          <input id="trackerGoal" type="number" placeholder="Goal number" min="1" max="999999" required />
+          <select id="trackerIcon" aria-label="Choose icon">
+            <option value="🚀">🚀 Growth</option>
+            <option value="🤖">🤖 Bot</option>
+            <option value="🎮">🎮 Game</option>
+            <option value="✅">✅ Tasks</option>
+            <option value="💰">💰 Money</option>
+            <option value="🔥">🔥 Streak</option>
+            <option value="📚">📚 School</option>
+            <option value="⭐">⭐ Custom</option>
+          </select>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="content-grid">
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Your trackers</h2>
+              <p>Use + and − to update values. Everything saves on this device.</p>
+            </div>
+            <button id="resetBtn" class="danger ghost">Reset all</button>
+          </div>
+          <div id="trackerList" class="tracker-list"></div>
+        </section>
+
+        <aside class="panel side-panel">
+          <h2>Notes</h2>
+          <textarea id="notes" placeholder="Write quick notes, ideas, reminders, links, goals..."></textarea>
+
+          <h2>Today</h2>
+          <ul class="mini-list" id="todayList"></ul>
+        </aside>
+      </section>
+    </main>
+
+    <template id="trackerTemplate">
+      <article class="tracker-card">
+        <div class="tracker-top">
+          <span class="tracker-icon"></span>
+          <div>
+            <h3 class="tracker-title"></h3>
+            <p class="tracker-meta"></p>
+          </div>
+          <button class="delete-btn" title="Delete tracker">×</button>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar"></div>
+        </div>
+        <div class="tracker-bottom">
+          <button class="minus">−</button>
+          <strong class="tracker-value"></strong>
+          <button class="plus">+</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="script.js"></script>
+  </body>
+</html>
