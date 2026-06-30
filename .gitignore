@@ -1,4 +1,8 @@
-node_modules/
 .env
-data/bot-data.json
-npm-debug.log*
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/bot_data.json
+data/*.tmp
+data/*.broken-*.json
