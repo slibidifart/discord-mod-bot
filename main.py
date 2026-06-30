@@ -25,7 +25,7 @@ class ManagementBot(commands.Bot):
         self.store = Store()
 
     async def setup_hook(self):
-        for extension in ("cogs.moderation", "cogs.roblox", "cogs.settings", "cogs.honor"):
+        for extension in ("cogs.moderation", "cogs.roblox", "cogs.honor", "cogs.settings"):
             await self.load_extension(extension)
 
         if GUILD_ID:
