@@ -146,7 +146,7 @@ class Honor(commands.Cog):
             if addable:
                 await member.add_roles(addable, reason="Automatic military rank role sync")
                 changed = True
-        except discord.Forbidden:
+        except (discord.Forbidden, discord.HTTPException):
             return changed
         return changed
 
